@@ -6,12 +6,18 @@ knitr::opts_chunk$set(
 )
 
 ## ----eval = FALSE-------------------------------------------------------------
+#  install.packages('reticulate')
+#  reticulate::install_miniconda()
+
+## ----eval = FALSE-------------------------------------------------------------
+#  # install.packages('mglasso')
 #  remotes::install_github("desanou/mglasso")
-#  library(mglasso)
 
 ## -----------------------------------------------------------------------------
 #  library(mglasso)
-#  install_conesta()
+#  install_pylearn_parsimony(envname = "rmglasso", method = "conda")
+#  reticulate::use_condaenv("rmglasso", required = TRUE)
+#  reticulate::py_config()
 
 ## -----------------------------------------------------------------------------
 #  library(Matrix)
@@ -27,27 +33,26 @@ knitr::opts_chunk$set(
 #    blocs[[j]] <- bloc
 #  }
 #  
-#  mat.covariance <- Matrix::bdiag(blocs)
-#  Matrix::image(mat.covariance)
-
-## -----------------------------------------------------------------------------
-#  rep(1:3, each = 3)
+#  mat.correlation <- Matrix::bdiag(blocs)
+#  corrplot::corrplot(as.matrix(mat.correlation), method = "color", tl.col="black")
 
 ## -----------------------------------------------------------------------------
 #  set.seed(11)
-#  X <- mvtnorm::rmvnorm(n, mean = rep(0,p), sigma = as.matrix(mat.covariance))
+#  X <- mvtnorm::rmvnorm(n, mean = rep(0,p), sigma = as.matrix(mat.correlation))
+#  colnames(X) <- LETTERS[1:9]
 
 ## -----------------------------------------------------------------------------
 #  X <- scale(X)
-#  res <- mglasso(X, lambda1 = 0.1, lambda2_start = 0.1, fuse_thresh = 1e-3)
-
-## ----fig.width=10, fig.height=10----------------------------------------------
-#  plot_mglasso(res)
+#  res <- mglasso(X, lambda1 = 0.2*n, lambda2_start = 0.1, fuse_thresh = 1e-3, verbose = FALSE)
 
 ## -----------------------------------------------------------------------------
-#  res$out$level9$clusters
-#  res$out$level7$clusters
-#  res$out$level4$clusters
-#  res$out$level3$clusters
-#  res$out$level1$clusters
+#  temp <- mglasso::conesta(X, lam1 = 0.2*n, lam2 = 0.1)
+
+## -----------------------------------------------------------------------------
+#  library(ggplot2)
+#  library(ggrepel)
+#  mglasso:::plot_clusterpath(as.matrix(X), res)
+
+## -----------------------------------------------------------------------------
+#  plot_mglasso(res)
 

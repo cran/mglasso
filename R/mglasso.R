@@ -1,3 +1,9 @@
+### TODO
+### return :: penalties (l1 tv), sparsity, n_edges for each model varying tv
+###           path (list of adjacency mats), beta (list of betas l1 fixed)
+### input :: symmetrization rule for path
+### make maxit visible
+
 #' Inference of Multiscale Gaussian Graphical Model.
 #'
 #' Cluster variables using L2 fusion penalty and simultaneously estimates a
@@ -5,13 +11,13 @@
 #'
 #' Estimates a gaussian graphical model structure while hierarchically grouping
 #' variables by optimizing a pseudo-likelihood function combining Lasso and
-#' fuse-group Lasso penalties. The problem is solved via the \emph{COntinuation
-#' with NEsterov smoothing in a Shrinkage-Thresholding Algorithm} (Hadj-Selem et
+#' fuse-group Lasso penalties. The problem is solved via the *COntinuation
+#' with NEsterov smoothing in a Shrinkage-Thresholding Algorithm* (Hadj-Selem et
 #' al. 2018). Varying the fusion penalty \eqn{\lambda_2} in a multiplicative
 #' fashion allow to uncover a seemingly hierarchical clustering structure. For
 #' \eqn{\lambda_2 = 0}, the approach is theoretically equivalent to the
-#' Meinshausen-Bühlmann (2006) \emph{neighborhood selection} as resuming to the
-#' optimization of \emph{pseudo-likelihood} function with \eqn{\ell_1} penalty
+#' Meinshausen-Bühlmann (2006) *neighborhood selection* as resuming to the
+#' optimization of *pseudo-likelihood* function with \eqn{\ell_1} penalty
 #' (Rocha et al., 2008). The algorithm stops when all the variables have merged
 #' into one cluster. The criterion used to merge clusters is the
 #' \eqn{\ell_2}-norm distance between regression vectors.
@@ -36,31 +42,32 @@
 #'   penalty (clustering penalty).
 #' @param lambda2_factor Numeric scalar. Step used to update fused-group Lasso
 #'   penalty in a multiplicative way..
-#' @param precision Precision of estimation algorithm.
+#' @param precision Tolerance for the stopping criterion (duality gap).
 #' @param weights_ Matrix of weights.
-#' @param type If "initial" use classical version of \bold{MGLasso} without
+#' @param type If "initial" use classical version of **MGLasso** without
 #'   weights.
 #' @param compact Logical scalar. If TRUE, only save results when previous
 #'   clusters are different from current.
+#' @param verbose Logical scalar. Print trace. Default value is FALSE.
 #'
-#' @return A list-like object of class \code{mglasso} is returned.
+#' @return A list-like object of class `mglasso` is returned.
 #'   \item{out}{List of lists. Each element of the list corresponds to a
-#'   clustering level. An element named \code{levelk} contains the regression
-#'   matrix \code{beta} and clusters vector \code{clusters} for a clustering in
-#'   \code{k} clusters. When \code{compact = TRUE} \code{out} has as many
-#'   elements as the number of unique partitions. When set to \code{FALSE}, the
+#'   clustering level. An element named `levelk` contains the regression
+#'   matrix `beta` and clusters vector `clusters` for a clustering in
+#'   `k` clusters. When `compact = TRUE` `out` has as many
+#'   elements as the number of unique partitions. When set to `FALSE`, the
 #'   function returns as many items as the the range of values taken by
-#'   \code{lambda2}.} \item{l1}{the sparsity penalty \code{lambda1} used in the
+#'   `lambda2`.} \item{l1}{the sparsity penalty `lambda1` used in the
 #'   problem solving.}
 #'
 #' @export
 #'
-#' @seealso \code{\link{conesta}} for the problem solver,
-#'   \code{\link{plot_mglasso}} for plotting the output of \code{mglasso}.
+#' @seealso [conesta()] for the problem solver,
+#'   [plot_mglasso()] for plotting the output of `mglasso`.
 #'
 #' @examples
-#' \donttest{
-#' install_conesta
+#' \dontrun{
+#' reticulate::use_condaenv("rmglasso", required = TRUE)
 #' n = 50
 #' K = 3
 #' p = 9
@@ -86,17 +93,21 @@
 
 mglasso <- function(x, lambda1 = 0, fuse_thresh = 1e-3, maxit = NULL,
                     distance = c("euclidean", "relative"), lambda2_start = 1e-4, lambda2_factor = 1.5,
-                    precision = 1e-2, weights_ = NULL, type = c("initial"), compact = TRUE) {
+                    precision = 1e-2, weights_ = NULL, type = c("initial"), compact = TRUE,
+                    verbose = FALSE) {
+
+  ## Check input
+  stopifnot(lambda1 >= 0 | fuse_thresh >= 0 | lambda2_start >= 0 | lambda2_factor >= 0)
+  distance = match.arg(distance)
+  type = match.arg(type)
+
   p <- ncol(x)
   x <- scale(x)
   clusters <- 1:p
-
   t <- 1  # index for the out list.
   iter <- 0
   out <- list()
   clusters_prev <- NULL
-  distance = match.arg(distance)
-  type = match.arg(type)
 
   ## Loop until all the variables merged
   while (length(unique(clusters)) > 1) {
@@ -112,8 +123,8 @@ mglasso <- function(x, lambda1 = 0, fuse_thresh = 1e-3, maxit = NULL,
 
     beta <- conesta(x, lambda1, lambda2, beta_old, prec_ = precision,
                     type_ = type, W_ = weights_)
-    print(lambda1)
-    beta_old <- beta_to_vector(beta)
+    if(verbose) cat("lambda1 = ", lambda1, " ")
+    beta_old <- beta_to_vector(beta) ## For warm start
 
     diffs <- dist_beta(beta, distance = distance)  ## Update distance matrix
 
@@ -124,7 +135,7 @@ mglasso <- function(x, lambda1 = 0, fuse_thresh = 1e-3, maxit = NULL,
     }  ## Clustering ends here
 
     cost_ <- cost(beta, x)
-    cat("nclusters =", length(unique(clusters)), "lambda2", lambda2,
+    if(verbose) cat("nclusters =", length(unique(clusters)), "lambda2", lambda2,
         "cost =", cost_, "\n")
 
     if (compact) {
@@ -144,8 +155,8 @@ mglasso <- function(x, lambda1 = 0, fuse_thresh = 1e-3, maxit = NULL,
     iter <- iter + 1
   }
 
-  result <- list(out = out, l1 = lambda1)
-  cat("niter == ", iter)
+  result <- list(out = out, lambda1 = lambda1)
+  if(verbose) cat("niter == ", iter)
 
   class(result) <- "mglasso"
 

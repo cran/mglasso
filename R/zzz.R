@@ -1,4 +1,8 @@
-.onAttach <- function(libname, pkgname) {
-  packageStartupMessage("Welcome to MGLasso.")
-  packageStartupMessage("Run install_conesta() to finalize the package python dependencies installation.")
+solver_module <- NULL
+
+.onLoad <- function(libname, pkgname) {
+   solver_module <<- reticulate::import_from_path("conesta_solver",
+                                                 path = system.file("python",
+                                                                    package = "mglasso"),
+                                                 delay_load = TRUE)
 }

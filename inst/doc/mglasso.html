@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-<title>Installation</title>
+<title>Method</title>
 
 <script type="text/javascript">
 window.onload = function() {
@@ -204,23 +204,70 @@ hr {
 </head>
 
 <body>
-<p>Inference of Multiscale Gaussian Graphical Models.  </p>
+<h2>Method</h2>
 
-<h2>Installation</h2>
+<p>This repository provides an implementation of the <code>MGLasso</code> (Multiscale Graphical Lasso) algorithm: an approach for estimating sparse Gaussian Graphical Models with the addition of a group-fused Lasso penalty. </p>
 
-<pre><code class="r">remotes::install_github(&quot;desanou/mglasso&quot;)
-library(mglasso)
+<p><code>MGLasso</code> is described in the paper <a href="https://desanou.github.io/multiscale_glasso/">Inference of Multiscale Gaussian Graphical Model</a>. <code>MGLasso</code> has these contributions:</p>
+
+<ul>
+<li><p>We simultaneously infer a network and estimate a clustering structure by combining the <a href="https://arxiv.org/abs/math/0608017">neighborhood selection</a> approach (Meinshausen and Bühlman, 2006) and <a href="https://www.di.ens.fr/%7Efbach/419_icmlpaper.pdf">convex clustering</a> (Hocking et al. 2011).</p></li>
+<li><p>We use a continuation with Nesterov smoothing in a shrinkage-thresholding algorithm (<a href="https://arxiv.org/abs/1605.09658"><code>CONESTA</code></a>, Hadj-Selem et al. 2018) to solve the optimization problem.</p></li>
+</ul>
+
+<p>To solve the <code>MGLasso</code> problem, we seek the regression vectors \(\beta^i\) that minimize   </p>
+
+<p>$J<em>{\lambda_1, \lambda_2}(\boldsymbol{\beta}; \mathbf{X} ) = 
+  \frac{1}{2} 
+     \sum</em>{i=1}<sup>p</sup> 
+        \left \lVert 
+            \mathbf{X}<sup>i</sup> - \mathbf{X}<sup>{\setminus</sup> i} \boldsymbol{\beta}<sup>i</sup> 
+        \right \rVert<em>2 <sup>2</sup>  + 
+  \lambda_1 
+    \sum</em>{i = 1}<sup>p</sup><br/>
+      \left \lVert 
+         \boldsymbol{\beta}<sup>i</sup> \right \rVert<em>1 + 
+  \lambda_2 
+     \sum</em>{i &lt; j} 
+        \left \lVert 
+           \boldsymbol{\beta}<sup>i</sup> - \tau_{ij}(\boldsymbol{\beta}<sup>j)</sup> 
+        \right \rVert_2.$</p>
+
+<p><code>MGLasso</code> package is based on the python implementation of the solver <code>CONESTA</code> available in <a href="https://github.com/neurospin/pylearn-parsimony">pylearn-parsimony</a> library.</p>
+
+<h2>Package requirements and installation</h2>
+
+<ul>
+<li>  Install the <code>reticulate</code> package and Miniconda if no conda distribution available on the OS.</li>
+</ul>
+
+<pre><code class="r">install.packages(&#39;reticulate&#39;)
+reticulate::install_miniconda()
+</code></pre>
+
+<ul>
+<li>  Install <code>MGLasso</code>, its python dependencies and configure the conda environment <code>rmglasso</code>.</li>
+</ul>
+
+<pre><code class="r"># install.packages(&#39;mglasso&#39;)
+remotes::install_github(&quot;desanou/mglasso&quot;)
 </code></pre>
 
 <pre><code class="r">library(mglasso)
-install_conesta()
+install_pylearn_parsimony(envname = &quot;rmglasso&quot;, method = &quot;conda&quot;)
+reticulate::use_condaenv(&quot;rmglasso&quot;, required = TRUE)
+reticulate::py_config()
 </code></pre>
 
-<h2>Basic Usage</h2>
+<p>The <code>conesta_solver</code> is delay loaded. See <code>reticulate::import_from_path</code> for details.</p>
 
-<ol>
-<li>Simulate some block diagonal model<br/></li>
-</ol>
+<p>An example of use is given below.</p>
+
+<h2>Illustration on a simple model</h2>
+
+<h3>Simulate a block diagonal model</h3>
+
+<p>We simulate a \(3\)-block diagonal model where each block contains \(3\) variables. The intra-block correlation level is set to \(0.85\) while the correlations outside the blocks are kept to \(0\).  </p>
 
 <pre><code class="r">library(Matrix)
 n = 50
@@ -235,53 +282,47 @@ for (j in 1:K) {
   blocs[[j]] &lt;- bloc
 }
 
-mat.covariance &lt;- Matrix::bdiag(blocs)
-Matrix::image(mat.covariance)
+mat.correlation &lt;- Matrix::bdiag(blocs)
+corrplot::corrplot(as.matrix(mat.correlation), method = &quot;color&quot;, tl.col=&quot;black&quot;)
 </code></pre>
 
-<p>1.1 True cluster partition</p>
-
-<pre><code class="r">rep(1:3, each = 3)
-</code></pre>
-
-<p>1.2. Simulate gaussian data from the covariance matrix </p>
+<h4>Simulate gaussian data from the covariance matrix</h4>
 
 <pre><code class="r">set.seed(11)
-X &lt;- mvtnorm::rmvnorm(n, mean = rep(0,p), sigma = as.matrix(mat.covariance))
+X &lt;- mvtnorm::rmvnorm(n, mean = rep(0,p), sigma = as.matrix(mat.correlation))
+colnames(X) &lt;- LETTERS[1:9]
 </code></pre>
 
-<ol>
-<li>Launch algorithm<br/></li>
-</ol>
+<h3>Run <code>mglasso()</code></h3>
+
+<p>We set the sparsity level \(\lambda_1\) to \(0.2\) and rescaled it with the size of the sample.</p>
 
 <pre><code class="r">X &lt;- scale(X)    
-res &lt;- mglasso(X, lambda1 = 0.1, lambda2_start = 0.1, fuse_thresh = 1e-3)
+res &lt;- mglasso(X, lambda1 = 0.2*n, lambda2_start = 0.1, fuse_thresh = 1e-3, verbose = FALSE)
 </code></pre>
 
-<ol>
-<li>Plot results compact version</li>
-</ol>
+<p>To launch a unique run of the objective function call the <code>conesta</code> function. </p>
 
-<p>3.1 Estimated regression vectors</p>
+<pre><code class="r">temp &lt;- mglasso::conesta(X, lam1 = 0.2*n, lam2 = 0.1)
+</code></pre>
+
+<h4>Estimated clustering path</h4>
+
+<p>We plot the clustering path of <code>mglasso</code> method on the 2 principal components axis of \(X\). The path is drawn on the predicted \(X\)&#39;s.</p>
+
+<pre><code class="r">library(ggplot2)
+library(ggrepel)
+mglasso:::plot_clusterpath(as.matrix(X), res)
+</code></pre>
+
+<h4>Estimated adjacency matrices along the clustering path</h4>
+
+<p>As the the fusion penalty increases from <code>level9</code> to <code>level1</code> we observe a progressive fusion of adjacent edges.  </p>
 
 <pre><code class="r">plot_mglasso(res)
 </code></pre>
 
-<p><code>level9</code> denotes a partition with <code>9</code> clusters.
-We observe a shrinkage effect in the estimated coefficients due to the fuse-group lasso penalty parameter.</p>
-
-<p>3.2 Estimated clustering partitions  </p>
-
-<pre><code class="r">res$out$level9$clusters
-res$out$level7$clusters
-res$out$level4$clusters
-res$out$level3$clusters
-res$out$level1$clusters
-</code></pre>
-
-<p>The uncovered partition obtained while increasing \(\lambda_2\) is a hierarchical partition under some constraints.</p>
-
-<h1>Reference</h1>
+<h2>Reference</h2>
 
 <p>Edmond, Sanou; Christophe, Ambroise; Geneviève, Robin; (2022): Inference of Multiscale Gaussian Graphical Model. ArXiv. Preprint. <a href="https://doi.org/10.48550/arXiv.2202.05775">https://doi.org/10.48550/arXiv.2202.05775</a></p>
 

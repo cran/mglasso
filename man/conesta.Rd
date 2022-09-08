@@ -25,22 +25,22 @@ conesta(
 
 \item{beta_warm}{Warm initialization vector.}
 
-\item{type_}{Character scalar. By default set to initial version which don't
+\item{type_}{Character scalar. By default set to initial version which doesn't
 use weights}
 
-\item{W_}{Weights matrix.}
+\item{W_}{Weights matrix for total variation penalties.}
 
 \item{mean_}{Logical scalar. If TRUE weights the optimization function by the
 inverse of sample size.}
 
 \item{max_iter_}{Numeric scalar. Maximum number of iterations.}
 
-\item{prec_}{Numeric scalar. Precision.}
+\item{prec_}{Numeric scalar. Tolerance for the stopping criterion (duality gap).}
 }
 \value{
 Numeric matrix of size pxp. Line \code{k} of the matrix represents
-  the coefficients obtained from the L1-L2 penalized regression of variable
-  \code{k} on the others.
+the coefficients obtained from the L1-L2 penalized regression of variable
+\code{k} on the others.
 }
 \description{
 Solve the MGLasso optimization problem using CONESTA algorithm. Interface to
@@ -48,7 +48,7 @@ the pylearn.parsimony python library.
 }
 \details{
 \emph{COntinuation with NEsterov smoothing in a Shrinkage-Thresholding
-Algorithm} (CONESTA, Hadj-Selem et al. 2018) <doi:10.1109/TMI.2018.2829802>
+Algorithm} (CONESTA, Hadj-Selem et al. 2018) \url{doi:10.1109/TMI.2018.2829802}
 is an algorithm design for solving optimization problems including group-wise
 penalties. This function is an interface with the python solver. The MGLasso
 problem is first reformulated in a problem of the form \deqn{argmin 1/2 ||Y -
@@ -57,18 +57,20 @@ problem is first reformulated in a problem of the form \deqn{argmin 1/2 ||Y -
 the vectorized form of matrix \eqn{X}.
 }
 \examples{
-\donttest{
-install_conesta()
+\dontrun{# because of installation of external packages during checks
+mglasso::install_pylearn_parsimony(envname = "rmglasso", method = "conda")
+reticulate::use_condaenv("rmglasso", required = TRUE)
+reticulate::py_config()
 n = 30
 K = 2
 p = 4
 rho = 0.85
 blocs <- list()
 for (j in 1:K) {
-  bloc <- matrix(rho, nrow = p/K, ncol = p/K)
-  for(i in 1:(p/K)) { bloc[i,i] <- 1 }
-  blocs[[j]] <- bloc
-}
+ bloc <- matrix(rho, nrow = p/K, ncol = p/K)
+   for(i in 1:(p/K)) { bloc[i,i] <- 1 }
+   blocs[[j]] <- bloc
+   }
 
 mat.covariance <- Matrix::bdiag(blocs)
 mat.covariance
@@ -77,8 +79,7 @@ X <- mvtnorm::rmvnorm(n, mean = rep(0,p), sigma = as.matrix(mat.covariance))
 X <- scale(X)
 res <- conesta(X, 0.1, 0.1)
 }
-
 }
 \seealso{
-\code{\link{mglasso}} for the MGLasso model estimation.
+\code{\link[=mglasso]{mglasso()}} for the MGLasso model estimation.
 }
